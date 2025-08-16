@@ -11,7 +11,7 @@ async function buildWorker() {
     entrypoints: ['src/index.ts'],
     outdir: 'dist',
     target: 'browser',
-    sourcemap: true,
+    sourcemap: 'external',
     format: 'esm',
     minify: process.env.NODE_ENV === 'production',
     define: {

@@ -9,8 +9,6 @@ command = "bun run build"
 # 静的アセットの設定
 [assets]
 directory = "dist"
-include = ["**/*"]
-exclude = []
 
 [env.production]
 name = "transformer-gamma3"
