@@ -14,8 +14,8 @@
     Message,
     TextGenerationSingle,
   } from '@huggingface/transformers';
-  import { marked } from 'marked';
-  import { tick } from 'svelte';
+  import { tick, onMount } from 'svelte';
+  import './MarkdownRenderer';
 
   let generatorStatus = $state<'idle' | 'loading'>('loading');
   let isStreaming = $state(false);
@@ -23,6 +23,7 @@
   let chatHistory = $state<Message[][]>([]);
   let chatArea: HTMLDivElement | null = $state(null);
   let mainRef: HTMLElement | null = $state(null);
+  let isInitialized = $state(false);
 
   const generate = async () => {
     if (!inputText) {
@@ -31,7 +32,12 @@
     }
 
     isStreaming = true;
-    const res = await generateText([{ role: 'user', content: inputText }]);
+    // chatHistoryの最後の3つの会話履歴を取得し、今回の入力を追加してgenerateTextに渡す
+    const recentHistory = chatHistory.slice(-3).flat();
+    const res = await generateText([
+      ...recentHistory,
+      { role: 'user', content: inputText },
+    ]);
 
     const last = res.at(-1);
     if (!last || typeof last !== 'object') {
@@ -47,6 +53,7 @@
       isStreaming = false;
     }
     inputText = '';
+    await tick();
     chatArea?.scrollTo({
       top: chatArea.scrollHeight,
       behavior: 'smooth',
@@ -60,7 +67,7 @@
     chatArea.style.maxHeight = `${mainRef.clientHeight * 0.8}px`;
   }
 
-  $effect(() => {
+  onMount(() => {
     initAI().then((res) => {
       generatorStatus = 'idle';
     });
@@ -96,11 +103,16 @@
                           {/if}
                           {message.role}:
                         </Typography>
-                        <Typography as="span" font="small">
-                          <span class="chat-assistant-message">
-                            {@html marked(message.content)}
-                          </span>
-                        </Typography>
+                        {#if message.role === 'assistant'}
+                          <div class="chat-assistant-message">
+                            <markdown-renderer markdown={message.content}
+                            ></markdown-renderer>
+                          </div>
+                        {:else}
+                          <Typography as="span" font="small">
+                            {message.content}
+                          </Typography>
+                        {/if}
                       </VStack>
                     </div>
                   {/each}
@@ -198,8 +210,8 @@
     width: 100%;
   }
 
-  .chat-item .chat-assistant-message {
-    white-space: pre-line;
+  .chat-assistant-message {
+    width: 100%;
   }
 
   .chat-area {

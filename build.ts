@@ -8,7 +8,7 @@ async function buildWorker() {
 
   // フロントエンド用のビルド
   await Bun.build({
-    entrypoints: ['src/index.ts'],
+    entrypoints: ['src/index.ts', 'src/web-worker.ts'],
     outdir: 'dist',
     target: 'browser',
     sourcemap: 'external',
