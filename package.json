@@ -1,0 +1,24 @@
+{
+  "name": "transformer-gamma3",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "NODE_ENV=production bun run build-server.ts",
+    "dev": "NODE_ENV=development bun run dev-server.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "prettier": "^3.6.2",
+    "prettier-plugin-svelte": "^3.4.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.7.2",
+    "bun-plugin-svelte": "^0.0.6",
+    "koy-ui": "^0.0.6",
+    "marked": "^16.1.2",
+    "svelte": "^5.38.1"
+  }
+}
