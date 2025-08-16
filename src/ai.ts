@@ -3,6 +3,7 @@ import {
   TextGenerationPipeline,
   TextStreamer,
   type Message,
+  env,
 } from '@huggingface/transformers';
 
 export type Generator = Awaited<ReturnType<typeof pipeline>>;
@@ -10,6 +11,10 @@ export type Generator = Awaited<ReturnType<typeof pipeline>>;
 let generator: TextGenerationPipeline | null = null;
 export const initAI = async () => {
   if (!generator) {
+    // プロキシ経由でHugging Faceにアクセスするように設定
+    const currentDomain = window.location.origin;
+    env.remotes.huggingface = `${currentDomain}/hf-proxy/`;
+    
     // Create a text generation pipeline
     generator = await pipeline(
       'text-generation',

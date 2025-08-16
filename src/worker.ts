@@ -5,6 +5,50 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
+    // Hugging Faceモデルファイルのプロキシ
+    if (pathname.startsWith('/hf-proxy/')) {
+      // OPTIONSリクエスト（プリフライト）の処理
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Max-Age': '86400',
+          },
+        });
+      }
+
+      const targetPath = pathname.replace('/hf-proxy/', '');
+      const targetUrl = `https://huggingface.co/${targetPath}`;
+      
+      try {
+        const response = await fetch(targetUrl, {
+          method: request.method,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Cloudflare Worker)',
+          },
+        });
+
+        const proxyResponse = new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Content-Type': response.headers.get('Content-Type') || 'application/octet-stream',
+            'Cache-Control': 'public, max-age=3600',
+          },
+        });
+
+        return proxyResponse;
+      } catch (error) {
+        console.error('Proxy error:', error);
+        return new Response('Proxy Error', { status: 500 });
+      }
+    }
+
     // ルートパスまたはSPAのルーティング用
     if (
       pathname === '/' ||
