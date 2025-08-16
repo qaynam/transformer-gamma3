@@ -3,17 +3,39 @@ import {
   TextGenerationPipeline,
   TextStreamer,
   type Message,
-  env,
 } from '@huggingface/transformers';
 
 export type Generator = Awaited<ReturnType<typeof pipeline>>;
 
+// Hugging Face APIへのリクエストをプロキシ経由にリダイレクト
+function setupProxyFetch() {
+  const originalFetch = window.fetch;
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    let url: string;
+    if (typeof input === 'string') {
+      url = input;
+    } else if (input instanceof URL) {
+      url = input.toString();
+    } else {
+      url = input.url;
+    }
+    
+    // Hugging FaceのURLをプロキシ経由に変換
+    if (url.includes('huggingface.co/')) {
+      const proxyUrl = url.replace('https://huggingface.co/', `${window.location.origin}/hf-proxy/`);
+      console.log('Proxying request:', url, '->', proxyUrl);
+      return originalFetch(proxyUrl, init);
+    }
+    
+    return originalFetch(input, init);
+  };
+}
+
 let generator: TextGenerationPipeline | null = null;
 export const initAI = async () => {
   if (!generator) {
-    // プロキシ経由でHugging Faceにアクセスするように設定
-    const currentDomain = window.location.origin;
-    env.remotes.huggingface = `${currentDomain}/hf-proxy/`;
+    // プロキシを設定
+    setupProxyFetch();
     
     // Create a text generation pipeline
     generator = await pipeline(

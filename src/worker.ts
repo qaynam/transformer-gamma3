@@ -21,7 +21,7 @@ export default {
 
       const targetPath = pathname.replace('/hf-proxy/', '');
       const targetUrl = `https://huggingface.co/${targetPath}`;
-      
+
       try {
         const response = await fetch(targetUrl, {
           method: request.method,
@@ -37,7 +37,9 @@ export default {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Content-Type': response.headers.get('Content-Type') || 'application/octet-stream',
+            'Content-Type':
+              response.headers.get('Content-Type') ||
+              'application/octet-stream',
             'Cache-Control': 'public, max-age=3600',
           },
         });
