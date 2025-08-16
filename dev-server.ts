@@ -22,7 +22,7 @@ watch(path.join(__dirname, 'src'), (event, filename) => {
 
 function build() {
   Bun.build({
-    entrypoints: ['src/index.ts'],
+    entrypoints: ['src/index.ts', 'src/web-worker.ts'],
     outdir: 'dist',
     target: 'browser',
     sourcemap: true,
@@ -51,6 +51,13 @@ Bun.serve({
           'Content-Type': url.pathname.endsWith('.css')
             ? 'text/css'
             : 'application/javascript',
+        },
+      });
+    },
+    '/web-worker.js': () => {
+      return new Response(Bun.file('./dist/web-worker.js'), {
+        headers: {
+          'Content-Type': 'application/javascript',
         },
       });
     },

@@ -9,31 +9,29 @@
     Typography,
     VStack,
   } from 'koy-ui';
-  import { generateText, initAI, type Generator } from './ai';
+  import { generateText, initAI } from './ai';
   import type {
     Message,
-    TextGenerationPipeline,
     TextGenerationSingle,
   } from '@huggingface/transformers';
   import { marked } from 'marked';
+  import { tick } from 'svelte';
 
-  let generator: TextGenerationPipeline | null = $state(null);
   let generatorStatus = $state<'idle' | 'loading'>('loading');
   let isStreaming = $state(false);
   let inputText = $state('');
   let chatHistory = $state<Message[][]>([]);
+  let chatArea: HTMLDivElement | null = $state(null);
+  let mainRef: HTMLElement | null = $state(null);
 
   const generate = async () => {
-    if (!generator) return;
     if (!inputText) {
       alert('Please enter a question');
       return;
     }
 
     isStreaming = true;
-    const res = await generateText(generator, [
-      { role: 'user', content: inputText },
-    ]);
+    const res = await generateText([{ role: 'user', content: inputText }]);
 
     const last = res.at(-1);
     if (!last || typeof last !== 'object') {
@@ -49,23 +47,30 @@
       isStreaming = false;
     }
     inputText = '';
+    chatArea?.scrollTo({
+      top: chatArea.scrollHeight,
+      behavior: 'smooth',
+    });
   };
 
-  const handleKeyDown = (e: CustomEvent<any>) => {
-    if (e.detail.key === 'Enter') {
-      generate();
+  function modifyChatAreaHeight() {
+    if (!chatArea || !mainRef?.clientHeight) {
+      return;
     }
-  };
+    chatArea.style.maxHeight = `${mainRef.clientHeight * 0.8}px`;
+  }
 
   $effect(() => {
     initAI().then((res) => {
-      generator = res;
       generatorStatus = 'idle';
     });
+    modifyChatAreaHeight();
   });
 </script>
 
-<main style:height="90%">
+<svelte:window on:resize={modifyChatAreaHeight} />
+
+<main bind:this={mainRef} style:height="90%">
   <div class="container">
     <div style:width="100%" style:margin-top="auto" style:padding-bottom="16px">
       {#if generatorStatus === 'loading'}
@@ -77,7 +82,7 @@
       {#if generatorStatus === 'idle'}
         <VStack spacing="XLarge">
           {#if chatHistory.length !== 0}
-            <div class="chat-area">
+            <div bind:this={chatArea} class="chat-area">
               <VStack>
                 {#each chatHistory as messages}
                   {#each messages as message}
@@ -102,9 +107,6 @@
                 {/each}
               </VStack>
             </div>
-            {#if isStreaming}
-              <Skeleton show={true} width="fill" height="100px" />
-            {/if}
           {:else}
             <div style:margin-bottom="20px">
               <HStack items="center" justify="center" spacing="XSmall">
@@ -112,6 +114,11 @@
               </HStack>
             </div>
           {/if}
+
+          {#if isStreaming === true}
+            <Skeleton show={true} width="fill" height="100px" />
+          {/if}
+
           <div>
             <HStack>
               <Input
@@ -120,7 +127,7 @@
                 width="fill"
                 bind:value={inputText}
               />
-              <Button onClick={generate} disabled={isStreaming}>Ask</Button>
+              <Button onClick={generate} disabled={isStreaming}>Send</Button>
             </HStack>
           </div>
         </VStack>
@@ -157,7 +164,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: #f0f0f0;
+    background-color: whitesmoke;
     font-family: 'Inter', sans-serif;
     color: #333;
     font-size: 16px;
@@ -170,6 +177,11 @@
     height: 100vh;
     width: 100vw;
   }
+
+  :global(html) > * {
+    font-family: 'Hiragino Sans';
+  }
+
   .container {
     display: flex;
     height: 100%;
@@ -194,7 +206,6 @@
     background-color: #fff;
     border-radius: 12px;
     padding: 16px;
-    height: 80%;
     overflow-y: auto;
     flex-grow: 1;
     margin-top: auto;

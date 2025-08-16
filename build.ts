@@ -16,6 +16,7 @@ async function buildWorker() {
     minify: process.env.NODE_ENV === 'production',
     define: {
       'import.meta.env.MODE': JSON.stringify(process.env.NODE_ENV),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
     },
     plugins: [
       SveltePlugin({

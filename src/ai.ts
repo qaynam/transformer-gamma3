@@ -1,64 +1,72 @@
+import type { Message, TextGenerationOutput } from '@huggingface/transformers';
 import {
-  pipeline,
-  TextGenerationPipeline,
-  TextStreamer,
-  type Message,
-} from '@huggingface/transformers';
+  DataType,
+  type MessageEventData,
+  type ResponseDataFromWorker,
+} from './web-worker';
 
-export type Generator = Awaited<ReturnType<typeof pipeline>>;
+const aiWorker = new window.Worker('/web-worker.js', {
+  type: 'module',
+});
 
-// Hugging Face APIへのリクエストをプロキシ経由にリダイレクト
-function setupProxyFetch() {
-  const originalFetch = window.fetch;
-  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    let url: string;
-    if (typeof input === 'string') {
-      url = input;
-    } else if (input instanceof URL) {
-      url = input.toString();
-    } else {
-      url = input.url;
-    }
-    
-    // Hugging FaceのURLをプロキシ経由に変換
-    if (url.includes('huggingface.co/')) {
-      const proxyUrl = url.replace('https://huggingface.co/', `${window.location.origin}/hf-proxy/`);
-      console.log('Proxying request:', url, '->', proxyUrl);
-      return originalFetch(proxyUrl, init);
-    }
-    
-    return originalFetch(input, init);
-  };
-}
+const waitResponse = async <R>(): Promise<R> => {
+  let listener: any = null;
+  let response: R | null = null;
+  await new Promise((resolve, reject) => {
+    listener = (ev: MessageEvent) => {
+      console.log('[main] onmessage', ev.data);
+      const { type, data } = ev.data as ResponseDataFromWorker;
+      if (type === 'success') {
+        response = data.details;
+        resolve(response);
+      } else if (type === 'error') {
+        reject(data.details);
+        response = data.details;
+      }
+    };
 
-let generator: TextGenerationPipeline | null = null;
-export const initAI = async () => {
-  if (!generator) {
-    // プロキシを設定
-    setupProxyFetch();
-    
-    // Create a text generation pipeline
-    generator = await pipeline(
-      'text-generation',
-      'onnx-community/gemma-3-270m-it-ONNX',
-      { dtype: 'fp32' }
-    );
+    aiWorker.addEventListener('message', listener);
+  });
+
+  if (listener) {
+    aiWorker.removeEventListener('message', listener);
   }
-  return generator;
+
+  return response as R;
 };
 
-export const generateText = async (
-  generator: TextGenerationPipeline,
-  messages: Message[]
-) => {
-  // Generate a response
-  return await generator(messages, {
-    max_new_tokens: 512,
-    do_sample: false,
-    streamer: new TextStreamer(generator.tokenizer, {
-      skip_prompt: true,
-      skip_special_tokens: true,
-      // callback_function: (text) => { /* Optional callback function */ },
-    }),
-  });
+export const initAI = async () => {
+  const params: MessageEventData = {
+    type: DataType.Init,
+    messages: [],
+  };
+  aiWorker.postMessage(params);
+  return await waitResponse();
+};
+
+export const generateText = async (messages: Message[]) => {
+  const params: MessageEventData = {
+    type: DataType.Generate,
+    messages,
+  };
+
+  let res = waitResponse<
+    [
+      {
+        generated_text: [
+          {
+            role: 'user';
+            content: string;
+          },
+          {
+            role: 'assistant';
+            content: string;
+          },
+        ];
+      },
+    ]
+  >();
+  aiWorker.postMessage(params);
+
+  return await res;
 };
