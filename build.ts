@@ -3,7 +3,10 @@ import { SveltePlugin } from 'bun-plugin-svelte';
 import { existsSync } from 'fs';
 import { readFileSync, writeFileSync } from 'fs';
 
-async function build() {
+async function buildWorker() {
+  console.log('Building frontend assets...');
+
+  // フロントエンド用のビルド
   await Bun.build({
     entrypoints: ['src/index.ts'],
     outdir: 'dist',
@@ -16,14 +19,14 @@ async function build() {
     },
     plugins: [
       SveltePlugin({
-        development: true,
+        development: process.env.NODE_ENV !== 'production',
         runes: true,
         forceSide: 'client',
       }),
     ],
   });
 
-  // copy index.html to dist
+  // HTMLファイルのコピーと調整
   await $`cp ./index.html ./dist/index.html`.then(() => {
     console.log('index.html copied to dist/index.html');
   });
@@ -36,20 +39,25 @@ async function build() {
         .replace(/\.\/dist\/index\.js/g, './index.js');
       if (html !== replaced) {
         writeFileSync('dist/index.html', replaced, 'utf-8');
-        console.log(
-          'index.html の index.css と index.js のパスから ./dist を削除しました'
-        );
-      } else {
-        console.log('index.html のパスに変更はありませんでした');
+        console.log('index.html のパスを調整しました');
       }
     } catch (err) {
-      console.error('index.html のパス書き換え中にエラーが発生しました:', err);
+      console.error('index.html の調整中にエラーが発生しました:', err);
     }
-  } else {
-    console.warn(
-      'dist/index.html が存在しないため、パスの書き換えをスキップしました'
-    );
   }
+
+  console.log('Building Worker...');
+
+  // Worker用のビルド
+  await Bun.build({
+    entrypoints: ['src/worker.ts'],
+    outdir: '.',
+    target: 'bun',
+    format: 'esm',
+    minify: process.env.NODE_ENV === 'production',
+  });
+
+  console.log('Build completed!');
 }
 
-build();
+buildWorker();
