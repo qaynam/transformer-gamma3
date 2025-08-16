@@ -69,6 +69,27 @@ export default {
       });
     }
 
+    // Web Worker専用の配信
+    if (pathname === '/web-worker.js') {
+      try {
+        const asset = await env.ASSETS.fetch(
+          new URL('/web-worker.js', request.url)
+        );
+        if (asset.status === 200) {
+          return new Response(asset.body, {
+            headers: {
+              'Content-Type': 'application/javascript',
+              'Cross-Origin-Embedder-Policy': 'require-corp',
+              'Cross-Origin-Opener-Policy': 'same-origin',
+              'Cache-Control': 'public, max-age=31536000, immutable',
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Web Worker fetch error:', error);
+      }
+    }
+
     // 静的アセットの配信
     try {
       const asset = await env.ASSETS.fetch(request);
